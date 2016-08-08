@@ -2,8 +2,11 @@ import os
 from urllib2 import urlopen, URLError, HTTPError
 import zipfile
 from selenium import webdriver
+from selenium.webdriver.support.ui import WebDriverWait
 import pickle
 from bs4 import BeautifulSoup
+import time
+import urllib2
 
 
 def mkdir(data_dir):
@@ -36,54 +39,72 @@ def unzip_file(src_path, dst_dir):
     zip_ref.close()
 
 
-def get_fox_links_1(base_url, pages, pickle_dst):
+def get_fox_links(base_url, pages, pickle_dst, delay=5):
     links_list = []
-    wd = webdriver.Firefox()
-    wd.get(base_url)
+
+    # cycle through each page
     for page in pages:
+        url = base_url + '?page=' + str(page)
+        f = urllib2.urlopen(url)
+        f.geturl()
 
-        html_content = wd.page_source
-
-        # get links
-        soup = BeautifulSoup(html_content, 'lxml')
+        # get list of links in html and append to links_list
+        soup = BeautifulSoup(f.read(), 'lxml')
         soup.find_all('a')
         temp_list = []
+
         for i in soup.find_all('a'):
             link = i.get('href')
             temp_list.append(link)
         temp_list = filter(None, temp_list)
         temp_list = [x for x in temp_list if 'http://www.foxnews.com/transcript/' in x]
         links_list.extend(temp_list)
+
+        # print page number and current output
         print 'Page is %s' % str(page)
         print temp_list
-        # navigate to next page
+
+        url_next = base_url + '#si=' + str(page)
+
+        # print page number and current output
+        print 'Page is %s' % str(page)
+        print temp_list
+        print url_next
+
     links_list = list(set(links_list))
     pickle.dump(links_list, open(pickle_dst, "wb"))
     return links_list
 
 
-def get_fox_links(base_url, pages, pickle_dst):
+def get_cnn_links(url, pickle_dst):
+    f = urllib2.urlopen(url)
+    f.geturl()
+    soup = BeautifulSoup(f, 'lxml')
     links_list = []
-    wd = webdriver.Firefox()
-    wd.get(base_url)
+    for i in soup.find_all('a'):
+        link = i.get('href')
+        links_list.append(link)
+    links_list = filter(None, links_list)
+    links_list = [x for x in links_list if '/TRANSCRIPTS/' in x]
+    links_list = list(set(links_list))
+    pickle.dump(links_list, open(pickle_dst, "wb"))
+    return links_list
+
+
+def get_msnbc_links(base_url, pickle_dst, filter_str, pages):
+    links_list = []
     for page in pages:
-
-        html_content = wd.page_source
-
-        # get links
-        soup = BeautifulSoup(html_content, 'lxml')
-        soup.find_all('a')
         temp_list = []
+        url = base_url + page
+        f = urllib2.urlopen(url)
+        f.geturl()
+        soup = BeautifulSoup(f, 'lxml')
         for i in soup.find_all('a'):
             link = i.get('href')
             temp_list.append(link)
-        temp_list = filter(None, temp_list)
-        temp_list = [x for x in temp_list if 'http://www.foxnews.com/transcript/' in x]
-        links_list.extend(temp_list)
-        print 'Page is %s' % str(page)
-        print temp_list
-        # navigate to next page
-        page_link = wd.find_element_by_link_text(str(page))
+        links_list.append(temp_list)
+    links_list = filter(None, links_list)
+    links_list = [x for x in links_list if filter_str in x]
     links_list = list(set(links_list))
     pickle.dump(links_list, open(pickle_dst, "wb"))
     return links_list
