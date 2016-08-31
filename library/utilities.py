@@ -6,7 +6,7 @@ from bs4 import BeautifulSoup
 import urllib2
 from datetime import date
 import pandas as pd
-
+import time
 
 def mkdir(data_dir):
     if not os.path.exists(data_dir):
@@ -127,6 +127,7 @@ def fox_dates_transcripts(name):
     dates = []
     host_name = []
     network = []
+    text = []
     for transcript in transcripts:
         date_list = transcript.split('transcript/')[1].split('/')[:3]
         date_list = [int(x) for x in date_list]
@@ -134,8 +135,9 @@ def fox_dates_transcripts(name):
         dates.append(transcript_date)
         host_name.append(name)
         network.append('fox')
-    zipped_transcripts_dates = zip(network, host_name, dates, transcripts)
-    return pd.DataFrame(zipped_transcripts_dates, columns=('network', 'host', 'date', 'link'))
+        text.append('')
+    zipped_transcripts_dates = zip(network, host_name, dates, transcripts, text)
+    return pd.DataFrame(zipped_transcripts_dates, columns=('network', 'host', 'date', 'link', 'text'))
 
 
 def append_fox_hosts(hosts):
@@ -152,6 +154,7 @@ def cnn_dates_transcripts(name):
     dates = []
     host_name = []
     network = []
+    text = []
     links_list = pd.read_pickle(src)
     links_list = [x for x in links_list if 'html' in x]
     links_list = [x for x in links_list if 'pr' not in x]
@@ -165,8 +168,9 @@ def cnn_dates_transcripts(name):
         dates.append(transcript_date)
         host_name.append(name)
         network.append('cnn')
-    zipped_transcripts_dates = zip(network, host_name, dates, links_list)
-    return pd.DataFrame(zipped_transcripts_dates, columns=('network', 'host', 'date', 'link'))
+        text.append('')
+    zipped_transcripts_dates = zip(network, host_name, dates, links_list, text)
+    return pd.DataFrame(zipped_transcripts_dates, columns=('network', 'host', 'date', 'link', 'text'))
 
 
 def append_cnn_hosts(hosts):
@@ -183,6 +187,7 @@ def msnbc_dates_transcripts(name):
     dates = []
     host_name = []
     network = []
+    text = []
     links_list = pd.read_pickle(src)
     links_list = [x for x in links_list if len(x.split('/')[-1]) == 10]
     links_list = [x for x in links_list if '///' not in x]
@@ -193,8 +198,9 @@ def msnbc_dates_transcripts(name):
         dates.append(transcript_date)
         host_name.append(name)
         network.append('msnbc')
-    zipped_transcripts_dates = zip(network, host_name, dates, links_list)
-    return pd.DataFrame(zipped_transcripts_dates, columns=('network', 'host', 'date', 'link'))
+        text.append('')
+    zipped_transcripts_dates = zip(network, host_name, dates, links_list, text)
+    return pd.DataFrame(zipped_transcripts_dates, columns=('network', 'host', 'date', 'link', 'text'))
 
 
 def append_msnbc_hosts(hosts):
@@ -225,3 +231,21 @@ def cnn_soup_to_list(soup):
     a_list = [x.encode('utf-8').strip() for x in soup.body.prettify().split('<br/>\n')]
     a_list = [x for x in a_list if '<body id' not in x]
     return a_list
+
+
+def get_cnn_text(df, pickle_dst):
+    indices = df.index.values
+    transcript_text_list = []
+    for idx, index in enumerate(indices):
+        try:
+            soup = get_soup(df.iloc[idx][3])
+            a_list = cnn_soup_to_list(soup)
+            transcript_text_list.append(a_list)
+        except:
+            print index
+            print 'unable to get html for'
+            print df.iloc[idx][3]
+            transcript_text_list.append('no data')
+        time.sleep(.1)
+    pickle.dump(transcript_text_list, open(pickle_dst, "wb"))
+    return transcript_text_list
